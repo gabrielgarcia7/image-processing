@@ -19,35 +19,26 @@ def Ffour (x, y):
 #def Ffive (x, y):
 
 def NormalizeIMG (matrix, max_value):
-    #norm = np.linalg.norm(matrix)
-    #matrix = matrix/norm  # normalized matrix [0,1]
-    #matrix = matrix * max_value # normalizes range [0, max_value]
+
     imax = np.max(matrix)
     imin = np.min(matrix)
 
     matrix_norm = (matrix-imin)/(imax-imin)
     matrix_norm = (matrix_norm*max_value)
 
-    
-
-
     return matrix_norm
 
 
 def BitwiseShift (matrix, bit_shift):
     
-    #print ("Input matrix: \n", matrix)
-
     matrix = np.right_shift(matrix, bit_shift)
-    #print ("Output matrix after right shifting: \n", matrix) 
 
     matrix = np.left_shift(matrix, bit_shift)
-    #print ("Output matrix after left shifting: \n", matrix) 
 
     return matrix
   
 def RSEf(g, r):
-    return math.sqrt((np.sum(np.square(g - r)))/(len(g) - 2))
+    return math.sqrt(np.sum(np.square(g - r)))
 
 ####### input reading ######
 _img_name = input().rstrip() # read starting image's name
@@ -82,6 +73,7 @@ if (_func_used == 3):
 if (_func_used == 4):
     random.seed(_seed)
     for x in range (_img_size):
+
         for y in range (_img_size):
             img[y, x] = Ffour(y, x)
 
@@ -124,13 +116,12 @@ for i in range (red): #downsampling img into new_img
 new_img = NormalizeIMG(new_img, 255)
 new_img = new_img.astype(np.uint8)
 #print(new_img)
-new_img = BitwiseShift(new_img, 1)
+new_img = BitwiseShift(new_img, 8-_bits_per_pixel)
 #print(new_img)
 
 ##########################
 
 #### Comparing with reference image ####
-
 
 
 ref_img = np.load(_img_name) # loading reference image
