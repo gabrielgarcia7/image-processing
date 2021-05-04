@@ -108,11 +108,11 @@ new_img = np.zeros(hd_img.shape)
 for i in range (x):
     for j in range (0, y, 2):
         if (i % 2 == 0): # if on even line
-            new_img[i][j] = (imgs[0])[i][j]
-            new_img[i][j+1] = (imgs[1])[i][j]
+            new_img[i][j] = (imgs[0])[i/2][j/2]
+            new_img[i][j+1] = (imgs[1])[i/2][j/2]
         else: # if on odd line
-            new_img[i][j] = (imgs[2])[i][j]
-            new_img[i][j+1] = (imgs[3])[i][j]
+            new_img[i][j] = (imgs[2])[i/2][j/2]
+            new_img[i][j+1] = (imgs[3])[i/2][j/2]
 
 ################################
 
