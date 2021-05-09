@@ -19,6 +19,7 @@ import imageio
 
 ####### functions definitions ######
 
+# Function that equalizate the image
 def Equalize_histogram(hist, A, nm):
 	
 	histC = np.zeros(256).astype(int)
@@ -27,8 +28,6 @@ def Equalize_histogram(hist, A, nm):
 
 	for i in range(1, 256):
 		histC[i] = hist[i] + histC[i-1]
-
-	hist_transform = np.zeros(256).astype(np.int32)
 	
 	# size of the input image
 	N, M = A.shape
@@ -36,20 +35,15 @@ def Equalize_histogram(hist, A, nm):
 	# creating a matrix to store the equalised image version
 	A_eq = np.zeros([N,M]).astype(np.int32)
 	
-	# for each intensity value, transforms it into a new intensity
-	# using the np.where() function 
+	# transforms each intensity value into a new intensity with np.where() 
 	for z in range(256):
-		# computes what would be the output level 's' for an input value 'z'
-		s = ((255.0)/float(nm))*histC[z] 
-
+		# equalization formula
+		s = ((255.0)/float(nm))*histC[z]
 		A_eq[ np.where(A == z) ] = s
-		
-		# storing the tranformation function
-		hist_transform[z] = s
 	
 	return (A_eq)
 	
-
+# Function that calculates the histogram
 def Single_histogram(hist, A):
 	# computes for all levels in the range
 	for i in range(256):
@@ -60,7 +54,7 @@ def Single_histogram(hist, A):
 			
 	return (hist)
 
-# Histograma Cumulativo Individual 
+# Individual Cumulative Histogram - function 1
 def Fone(imgs):
 	for i in range (4):
 		histogram = np.zeros(256, dtype=np.int32)
@@ -70,7 +64,7 @@ def Fone(imgs):
 
 	return (imgs)
 
-# Histograma Cumulativo Conjunto
+# Cumulative Histogram Set - function 2
 def Ftwo(imgs):
 	histogram = np.zeros(256, dtype=np.int32)
 	nm = 0
@@ -85,31 +79,20 @@ def Ftwo(imgs):
 
 	return (imgs)
 
-# Funcao de Correcao Gamma
+# Gamma Correction - function 3
 def Fthree(imgs, gamma):
-	for img in (imgs):
-		#x, y = img.shape
-		#for i in range (x):
-		#	for j in range(y):
-		#		img[i][j] = int( 255 * (( img[i][j] / 255.0) ** (1/gamma)) )
-		img =  (255 * ( np.floor( (img / 255.0) ** (1.0/gamma) ) ) )
+	for i in range(4):
+		imgs[i] =  np.floor((255 * (  (imgs[i]/255) ** (1.0/gamma) ) ))
 
 	return (imgs)
 
-def RSME(img, ref):
-	x, y = img.shape
-	sum = 0.0
-	for i in range(x):
-		for j in range(y):
-			sum += (ref[i][j] - img[i][j])**2
-
-	return ( math.sqrt( sum / (x*y) ) )
-
-def RSMEf(g, r):
+# Function that calculates the Root-mean-square deviation (RSME)
+def RSME(g, r):
 	x, y = g.shape
 	return math.sqrt((np.sum(np.square(g - r)))/(x*y))
 
 ####################################
+
 
 ####### input reading #######
 _low_res_img_name = input().rstrip() # read low res images' name
@@ -118,6 +101,7 @@ _func_used = int(input()) # read chosen function's id 0 <= x <= 3
 _gamma = float(input()) # read parameter γ
 ##############################
 
+
 ####### reading images #######
 img1 = imageio.imread(_low_res_img_name + "0.png")
 img2 = imageio.imread(_low_res_img_name + "1.png")
@@ -125,7 +109,10 @@ img3 = imageio.imread(_low_res_img_name + "2.png")
 img4 = imageio.imread(_low_res_img_name + "3.png")
 hd_img = imageio.imread(_high_res_img_name)
 ##############################
+
+
 imgs = [img1, img2, img3, img4]
+
 
 ####### enhancing image #######
 if (_func_used == 1):
@@ -136,22 +123,22 @@ if (_func_used == 2):
 
 if (_func_used == 3):
 	imgs = Fthree(imgs, _gamma)
-
 ################################
 
-####### Combining images ########
+
+####### Combining images - super resolution ########
 x, y = hd_img.shape
 new_img = np.zeros(hd_img.shape)
 
 for i in range (0, x, 2):
 	for j in range (0, y, 2):
-			new_img[i][j] = (imgs[0])[int(i/2)][int(j/2)]
-			new_img[i][j+1] = (imgs[3])[int(i/2)][int(j/2)]
+			new_img[i][j] = (imgs[0])[int(i/2)][int(j/2)]			
 			new_img[i+1][j] = (imgs[1])[int(i/2)][int(j/2)]
 			new_img[i+1][j+1] = (imgs[2])[int(i/2)][int(j/2)]
-
+			new_img[i][j+1] = (imgs[3])[int(i/2)][int(j/2)]
 ################################
 
+
 #### Comparing with reference image ####
-print("%.4f" % RSMEf(new_img, hd_img)) # printing the rsme value
+print("%.4f" % RSME(new_img, hd_img)) # printing the rsme value
 #################################
