@@ -19,7 +19,7 @@ import imageio
 
 ####### functions definitions ######
 
-def Equalize_histogram(hist, A):
+def Equalize_histogram(hist, A, nm):
 	
 	histC = np.zeros(256).astype(int)
 
@@ -28,19 +28,19 @@ def Equalize_histogram(hist, A):
 	for i in range(1, 256):
 		histC[i] = hist[i] + histC[i-1]
 
-	hist_transform = np.zeros(256).astype(np.uint8)
+	hist_transform = np.zeros(256).astype(np.int32)
 	
 	# size of the input image
 	N, M = A.shape
 	
 	# creating a matrix to store the equalised image version
-	A_eq = np.zeros([N,M]).astype(np.uint8)
+	A_eq = np.zeros([N,M]).astype(np.int32)
 	
 	# for each intensity value, transforms it into a new intensity
 	# using the np.where() function 
 	for z in range(256):
 		# computes what would be the output level 's' for an input value 'z'
-		s = ((256-1)/float(M*N))*histC[z]
+		s = ((255.0)/float(nm))*histC[z] 
 
 		A_eq[ np.where(A == z) ] = s
 		
@@ -56,38 +56,43 @@ def Single_histogram(hist, A):
 		# sum all positions in which A == i is true
 		pixels_value_i = np.sum(A == i)
 		# store it in the histogram array
-		hist[i] = pixels_value_i
+		hist[i] += pixels_value_i
 			
 	return (hist)
 
 # Histograma Cumulativo Individual 
 def Fone(imgs):
 	for i in range (4):
-		histogram = np.zeros(256, dtype=np.uint8)
+		histogram = np.zeros(256, dtype=np.int32)
 		histogram = Single_histogram (histogram, imgs[i])
-		imgs[i] = Equalize_histogram(histogram, imgs[i])
+		N, M = imgs[i].shape
+		imgs[i] = Equalize_histogram(histogram, imgs[i], N*M)
 
 	return (imgs)
 
 # Histograma Cumulativo Conjunto
 def Ftwo(imgs):
-	histogram = np.zeros(256, dtype=np.uint8)
-
+	histogram = np.zeros(256, dtype=np.int32)
+	nm = 0
 	#creating histogram from all images
 	for i in range (4):
-		histogram = Single_histogram (histogram, imgs[i])
+		histogram = Single_histogram (histogram, imgs[i])	
+		N, M = imgs[i].shape
+		nm += (N * M)
 
-	histogram = Equalize_histogram(histogram, imgs[i])
+	for i in range (4):
+		imgs[i] = Equalize_histogram(histogram, imgs[i], nm)
 
 	return (imgs)
 
 # Funcao de Correcao Gamma
 def Fthree(imgs, gamma):
-	for img in range(4):
-		x, y = (imgs[img]).shape
-		for i in range (x):
-			for j in range(y):
-				(imgs[img])[i][j] = int( 255 * (( (imgs[img])[i][j] / 255.0) ** (1/gamma)) )
+	for img in (imgs):
+		#x, y = img.shape
+		#for i in range (x):
+		#	for j in range(y):
+		#		img[i][j] = int( 255 * (( img[i][j] / 255.0) ** (1/gamma)) )
+		img =  (255 * ( np.floor( (img / 255.0) ** (1.0/gamma) ) ) )
 
 	return (imgs)
 
