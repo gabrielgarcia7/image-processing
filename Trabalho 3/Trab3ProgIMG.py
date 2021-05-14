@@ -1,5 +1,5 @@
 # -----------------------------------------------------------
-# Trabalho 02 : Realce e Superrresolução
+# Assignment 3: ﬁltering
 # SCC0251 — Image Processing
 # 
 # Prof. Lizeth Andrea Castellanos Beltran
@@ -18,6 +18,8 @@ import math
 import imageio
 
 ####### functions definitions ######
+
+# Filtering 1D - function 1
 def Fone (img, weights):
 
     pad_size = (len(weights) - 1) // 2 # calculating padding size for each side of image
@@ -29,33 +31,40 @@ def Fone (img, weights):
 
     flattened_img = np.pad(flattened_img, (pad_size, pad_size), 'wrap') # adds padding to image
 
+    a = int((len(weights)-1)/2)
 
     for i in range (pad_size, len(flattened_img) - pad_size):
-        for j in range (len(weights)):
-            new_img[i - pad_size] += flattened_img[i-pad_size+j] * weights[j]
+        # gets subarray of pixel neighbourhood
+        sub_v = flattened_img[i-a : i+a+1]
+        new_img[i - pad_size] = np.sum(np.multiply(sub_v, weights))	
 
     new_img = np.reshape(new_img, (N,M)) # reshapes array into image
     return (new_img)
 
+# Filtering 2D - function 1
 def Ftwo (img, weights):
 
     N,M = weights.shape
-    pad_size = (N - 1) // 2 # calculating padding size for each side of image
+    a = int((N-1)/2)
+    b = int((M-1)/2)
 
     new_img = np.zeros(img.shape)
 
-    img = np.pad(img, (pad_size, pad_size), 'reflect') # adds padding to image
+    img = np.pad(img, (a, b), 'reflect') # adds padding to image
 
-    imgSize,imgSize2 = img.shape
+    imgSizeX,imgSizeY = img.shape   # image size 
 
-    for i in range (pad_size, imgSize - pad_size):
-        for j in range (pad_size, imgSize - pad_size):
-            for pad_i in range (N):
-                for pad_j in range (N):
-                    new_img[i - pad_size][j - pad_size] += img[i - pad_size + pad_i][j - pad_size + pad_i] * weights[pad_i][pad_j]
+    for i in range (a, imgSizeX - a):
+        for j in range (b, imgSizeY - b):
+            # gets submatrix of pixel neighbourhood
+            sub_m = img[i-a : i+a+1, j-b : j+b+1]
+            # convolution
+            new_img[i-a][j-b] = np.sum(np.multiply(sub_m, weights))
     
     return (new_img)
 
+
+# Median Filter - function 1
 def Fthree (img, filter_size):
 
     pad_size = (filter_size - 1) // 2 # calculating padding size for each side of image
