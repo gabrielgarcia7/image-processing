@@ -19,15 +19,20 @@ import imageio
 import scipy
 import math
 
+
 ####### functions definitions ######
 
 # Function for method 1
 def Adaptive_denoising(gamma, img, filter_size, mode, row):
 
-    crop_img = img[ row[0]:row[2],row[1]:row[3] ] #crops image based on coordenates from input
+    #new_img = np.zeros(img.shape)
+    #print(row)
+    crop_img = img[ row[0]:row[1],row[2]:row[3] ] #crops image based on coordenates from input
 
     pad_size = (filter_size - 1) // 2 # calculating padding size for each side of image
     img = np.pad(img, (pad_size, pad_size), 'symmetric') # adds padding to image
+
+    #print(crop_img)
 
     new_img = img
     imgSizeX,imgSizeY = img.shape
@@ -36,34 +41,40 @@ def Adaptive_denoising(gamma, img, filter_size, mode, row):
         dispn = np.std(crop_img) # standard deviation from cropped image
         if dispn == 0:
             dispn = 1
-
         for i in range (pad_size, imgSizeX - pad_size):
             for j in range (pad_size, imgSizeY - pad_size):
-                displ = np.std(img[i-pad_size:i+pad_size][j-pad_size:j+pad_size]) # standard deviation from image area --fixthis
-                centerl = np.mean(img[i-pad_size:i+pad_size][j-pad_size:j+pad_size]) # average from image area --fixthis
+                a = 0
+                displ = np.std(img[i-pad_size:i+pad_size, j-pad_size:j+pad_size]) # standard deviation from image area --fixthis
+                centerl = np.mean(img[i-pad_size:i+pad_size, j-pad_size:j+pad_size]) # average from image area --fixthis
+                
                 if displ == 0:
                     displ = dispn
 
-                new_img[i][j] = img[i][j] - gamma * (dispn/displ) * (img[i][j] - centerl) # that one formula pdf
+                new_img[i, j] = img[i, j] - gamma * (dispn/displ) * (img[i, j] - centerl) # that one formula pdf
 
-       
+   
     else: # if mode is robust
         q75, q25 = np.percentile(crop_img, [75, 25]) # gets iqr from cropped image
         dispn = q75 - q25
         if dispn == 0:
             dispn = 1
-
         for i in range (pad_size, imgSizeX - pad_size):
             for j in range (pad_size, imgSizeY - pad_size):
 
-                q75, q25 = np.percentile(img[i-pad_size:i+pad_size][j-pad_size:j+pad_size], [75, 25]) # gets iqr from image area --fixthis
+                q75, q25 = np.percentile(img[i-pad_size:i+pad_size, j-pad_size:j+pad_size], [75, 25]) # gets iqr from image area --fixthis
                 displ = q75 - q25
+                centerl = np.median(img[i-pad_size:i+pad_size, j-pad_size:j+pad_size]) # median from image area --fixthis
+                
                 if displ == 0:
                     displ = dispn
+                
+                new_img[i, j] = img[i, j] - gamma * (dispn/displ) * (img[i, j] - centerl) # that one formula pdf
 
-                centerl = np.median(img[i-pad_size:i+pad_size][j-pad_size:j+pad_size]) # median from image area --fixthis
-                new_img[i][j] = img[i][j] - gamma * (dispn/displ) * (img[i][j] - centerl) # that one formula pdf
+    new_img = new_img[pad_size:imgSizeX-pad_size,pad_size:imgSizeY-pad_size]
 
+    # clip image between [0,255]
+    new_img = np.clip(new_img, 0, 255)
+    
     return new_img
 
 # Function for method 2
@@ -71,7 +82,8 @@ def Constrained_least_square(gamma, img, filter):
     p = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]) # inverse of Laplacian filter
     # adding padding
     # --fixthis (maybe)
-    img = np.pad(img, (1,1)) 
+    x,y = img.shape
+    img = np.pad(img, (3,3), 'symmetric')
 
     N,M = img.shape
     a = int((N-3)/2)
@@ -84,21 +96,29 @@ def Constrained_least_square(gamma, img, filter):
     filter = np.pad(filter, (a, b))
 
 
-    # moving to fourrier's domain
-    img = scipy.fft.rfft2(img)
-    p = scipy.fft.rfft2(p)
-    filter = scipy.fft.rfft2(filter)
-    h_ = np.conj(filter)
+    # # moving to fourrier's domain
+    # img = scipy.fftpack.rfft2(img)
+    # p = scipy.fftpack.rfft2(p)
+    # filter = scipy.fftpack.rfft2(filter)
+    # h_ = np.conj(filter)
 
+
+    # moving to fourrier's domain
+    img = np.fft.rfft2(img)
+    p = np.fft.rfft2(p)
+    filter = np.fft.rfft2(filter)
+    h_ = np.conj(filter)
 
     F = ( h_ / (filter**2 + gamma * (p**2) ) ) * img
 
     # move back to visual domain
-    F = scipy.fft.irfft2(F)
+    F = np.fft.irfft2(F)
     F = np.fft.fftshift(F)
-
+    
     # clip image between [0,255]
     F = np.clip(F, 0, 255) 
+
+    F = F[6:x+6,6:y+6]
 
     return F
 
@@ -140,16 +160,15 @@ ref_img = imageio.imread(_img_ref_name)
 #############################
 
 ###### restoring image ######
+###### restoring image ######
 if _func_used == 1:
-    img = Adaptive_denoising(_gamma, img, _filter_size, _mode, _row)
+    new_img = Adaptive_denoising(_gamma, img, _filter_size, _mode, _row)
 
 elif _func_used == 2:
     filter = Gaussian_filter(_filter_size, _sigma)
-    img = Constrained_least_square(_gamma, img, filter)
-
+    new_img = Constrained_least_square(_gamma, img, filter)
 
 #### Comparing with reference image ####
 
-
-print("%.4f" % RSME(img, ref_img)) # printing the rsme value
+print("%.4f" % RSME(new_img, ref_img)) # printing the rsme value
 #################################
