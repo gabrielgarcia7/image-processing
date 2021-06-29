@@ -40,7 +40,7 @@ def Quantisation (img, b):
 # Calculates and concatenates the descriptors
 def Create_descriptors(img, b):
     dc = Normalized_histogram(img, (2**b)-1)
-    dt = Haralick_descriptor(img)
+    dt = Haralick_descriptor(img, (2**b)-1)
     dg = Gradients_histogram(img)
     return np.concatenate(dc, dt, dg)
 
@@ -49,7 +49,7 @@ def Normalized_histogram(img, b):
     hist = np.zeros(b, dtype=np.int32)
     for i in range(b):
 		# sum all positions in which A == i is true
-        pixels_value_i = np.sum(A == i)
+        pixels_value_i = np.sum(img == i)
 		# store it in the histogram array
         hist[i] += pixels_value_i
     
@@ -59,13 +59,137 @@ def Normalized_histogram(img, b):
     p = np.linalg.norm(p, b)
     return p
 
+def energy(c):
+    return np.sum(c**2)
+
+def entropy(c):
+    return -np.sum(c*np.log(c+0.001))
+
+def contrast(c):    
+    linha, coluna = c.shape
+    sum = 0
+    
+    for i in range(linha):
+        for j in range(coluna):
+            sum += ((i-j)**2)*c[i, j]
+
+    return sum/(linha*coluna)
+
+def correlation(c):
+
+    mi_i = 0 
+    mi_j = 0
+    delta_i = 0
+    delta_j = 0
+    correlation = 0
+    linha, coluna = c.shape
+
+    # mi_i
+    for i in range(linha):
+        mi_i *= i
+        for j in range(coluna):
+            mi_i += c[i, j]
+
+    # delta_i
+    for i in range(linha):
+        delta_i *= (i-mi_i)**2
+        for j in range(coluna):
+            delta_i += c[i, j]
+
+    # mi_j
+    for j in range(linha):
+        mi_j *= j
+        for i in range(coluna):
+            mi_j += c[i, j]
+
+    # delta_j
+    for j in range(linha):
+        delta_j *= (j-mi_j)**2
+        for i in range(coluna):
+            delta_j += c[i, j]
+
+    # correlation
+    for i in range(linha):
+        for j in range(coluna):
+            correlation += ((i*j*c[i,j])-(mi_i*mi_j))/(delta_i*delta_j)
+
+
+    return correlation
+
+def homogeneity(c):
+    linha, coluna = c.shape
+    sum = 0
+    
+    for i in range(linha):
+        for j in range(coluna):
+            sum += c[i, j]/(1 + abs(i -j))
+
+    return sum
+
+def coocurrence(g, intensities):
+    linha, coluna = g.shape
+
+    c = np.zeros([intensities, intensities])
+
+    for i in range(linha-1):
+        for j in range(coluna-1):
+            c[g[i, j], g [i+1, j+1]] += 1
+
+    c = c / np.sum(c)
+    return c
+
 # Calculates haralick texture descriptor, returns vector
-def Haralick_descriptor(img):
-    return something
+def Haralick_descriptor(img, intensities):
+    
+    c = coocurrence(img, intensities)
+
+    dt = np.array(5)
+
+    dt[0] = energy(c)
+    dt[1] = entropy(c)
+    dt[2] = contrast(c)
+    dt[3] = correlation(c)
+    dt[5] = homogeneity(c)
+
+    np.linalg.norm(dt)
+
+    return dt
 
 # Calculates histogram of oriented gradients, returns vector
 def Gradients_histogram(img):
-    return something
+
+    wsx = [ [-1, -2, -1],
+            [ 0,  0,  0],
+            [ 1,  2,  1]]
+
+    wsy = [ [-1,  0,  1],
+            [-2,  0,  2],
+            [-1,  0,  1]]
+
+    gradientX = scipy.ndimage.convolve(img, wsx, mode='constant', cval=0.0)
+    gradientY = scipy.ndimage.convolve(img, wsy, mode='constant', cval=0.0)
+
+    m = np.sqrt(gradientX**2 + gradientY**2)/np.sum(gradientX**2 + gradientY**2)
+
+    np.seterr(divide='ignore', invalid='ignore')
+
+    fi = np.arctan(gradientY/gradientX)
+    fi = fi + np.pi/2
+    fi = np.degrees(fi)
+
+    # digitise the angles into 9 bins
+    bins = np.arange(20, 180, 20)
+    fi_d = np.digitize(fi, bins, right=False)
+
+    linhas, colunas = img.shape
+
+    dg = np.zeros(9)
+
+    for i in range(linhas):
+        for j in range(colunas):
+            dg[fi_d[i,j]] += m[i,j]
+
+    return dg
 
 # Function that calculates the Root-mean-square deviation (RSME)
 def RSME(g, r):
@@ -99,5 +223,5 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 ###################################
 
 ###### Printing the results #####
-print(close_x + " " + close_y)
+#print(close_x + " " + close_y)
 #################################
