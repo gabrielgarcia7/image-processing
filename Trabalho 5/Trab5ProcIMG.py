@@ -37,7 +37,7 @@ def To_grayscale(img):
 # Quantisation to b bits
 def Quantisation (img, b):
     #print(img)
-    img = np.right_shift(img, b+2)
+    img = np.right_shift(img, 8-b)
     #print(img)
     return img
 
@@ -46,7 +46,7 @@ def Create_descriptors(img, b):
     
 
 
-    dc = Normalized_histogram(img, (2**b)-1)
+    dc = Normalized_histogram(img, (2**b))
     dt = Haralick_descriptor(img, (2**b)-1)
     dg = Gradients_histogram(img)
 
@@ -60,8 +60,8 @@ def Create_descriptors(img, b):
     # print('concatenado')
     desc = np.concatenate((dc, dt, dg))
 
-    #print("imprimindo vetorzao concatenado")
-    #print(desc)
+    # print("imprimindo vetorzao concatenado")
+    # print(desc)
 
     return desc
 
@@ -77,8 +77,8 @@ def Normalized_histogram(img, b):
     N,M = img.shape
     #simply divide h(k) by the total number of pixels in the image.
     p = hist / (N*M)
-    #print('imprimindo dc')
-    #print(p)
+    print('d_c')
+    print(p)
     p = p / np.linalg.norm(p, b)
     #print('imprimindo dc linalg')
     #print(p)
@@ -176,10 +176,10 @@ def Haralick_descriptor(img, intensities):
     dt[2] = contrast(c)
     dt[3] = correlation(c)
     dt[4] = homogeneity(c)
+    print("d_t")
+    print(dt)
 
     dt = dt / np.linalg.norm(dt)
-    #print("imprimindo dt")
-    #print(dt)
 
     return dt
 
@@ -197,7 +197,7 @@ def Gradients_histogram(img):
     gradientX = scipy.ndimage.convolve(img, wsx, mode='constant', cval=0.0)
     gradientY = scipy.ndimage.convolve(img, wsy, mode='constant', cval=0.0)
 
-    m = np.sqrt(gradientX**2 + gradientY**2)/np.sum(gradientX**2 + gradientY**2)
+    m = np.sqrt(gradientX**2 + gradientY**2)/np.sqrt(np.sum(gradientX**2 + gradientY**2))
 
     np.seterr(divide='ignore', invalid='ignore')
 
@@ -216,6 +216,9 @@ def Gradients_histogram(img):
     for i in range(linhas):
         for j in range(colunas):
             dg[fi_d[i,j]] += m[i,j]
+
+    print("d_g")
+    print(dg)
 
     dg = dg / np.linalg.norm(dg)
 
@@ -266,7 +269,7 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 N,M = ref_img.shape
 #print(N,M)
 windows = np.empty((int(N/16),int(M/16),32,32))
-wind_descr = np.empty((int(((N/16)) * ((M/16))), 21))
+wind_descr = np.empty((int(((N/16)) * ((M/16))), (2**_quant_par-1)+5+9))
 for i in range (int(N/16)-1): # creating windows and their descriptors
     for j in range(int(M/16)-1):
 
@@ -276,7 +279,7 @@ for i in range (int(N/16)-1): # creating windows and their descriptors
         
         #print("imprimindo os wind")
         #print(windows[i][j])
-        wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
+        #wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
         #print(wind_descr)
 
 min_dist = sys.maxsize
@@ -287,8 +290,8 @@ for x in range (len(descriptor)): # comparing descriptors with descriptors
         a = Difference(descriptor, wind_descr[y])
         if min_dist > a:
             min_dist = a
-            close_x = x
-            close_y = y
+            close_x = int(y / N/16)
+            close_y = int((y % N/16))
 
 ###################################
 
