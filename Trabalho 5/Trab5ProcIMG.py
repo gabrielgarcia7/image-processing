@@ -196,6 +196,13 @@ def RSME(g, r):
 	x, y = g.shape
 	return math.sqrt((np.sum(np.square(g - r)))/(x*y))
 
+# Function that compares two descriptors
+def Difference(a, b):
+    sum = 0.0
+    for i in range (len(a)):
+        for j in range (len(b)):
+            sum = (a[i] - b[i])**2
+    return math.sqrt(sum)
 ####################################
 
 ####### input reading #######
@@ -219,9 +226,27 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 ############################################
 
 ###### Finding the object #########
+N,M = ref_img.shape
+windows = np.empty((N/16,M/16))
+wind_descr = np.empty((N/16 * M/16))
+for i in range (N/16): # creating windows and their descriptors
+    for j in range(M/16):
+        windows[i][j] = ref_img[ row[i*32]:row[(i+1)*32],row[j*32]:row[(j+1)*32] ]
+        wind_descr[i* N/16 + j] = Create_descriptors(windows[i][j], _quant_par)
+
+min_dist = sys.maxsize
+close_x = -1
+close_y = -1
+for x in range (len(descriptor)): # comparing descriptors with descriptors
+    for y in range (N/16 * M/16):
+        a = Difference(descriptor[x], wind_descr[y])
+        if min_dist > a:
+            min_dist = a
+            close_x = x
+            close_y = y
 
 ###################################
 
 ###### Printing the results #####
-#print(close_x + " " + close_y)
+print(close_x + " " + close_y)
 #################################
