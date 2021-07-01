@@ -18,13 +18,15 @@ import numpy as np
 import imageio
 import math
 import scipy
+import scipy.ndimage
+import sys
 
 
 ####### functions definitions ######
 
 # Function for transforming RGB to gray scale
 def To_grayscale(img):
-    N,M = img.shape
+    N, M = img.shape[:-1]
     for i in range(N):
         for j in range(M):
             img[i, j, 0] = np.floor(img[i, j, 0] * 0.299 + img[i, j, 1] * 0.587 + img[i, j, 2] * 0.114)
@@ -34,15 +36,34 @@ def To_grayscale(img):
 
 # Quantisation to b bits
 def Quantisation (img, b):
-    img = np.right_shift(img, b)
+    #print(img)
+    img = np.right_shift(img, b+2)
+    #print(img)
     return img
 
 # Calculates and concatenates the descriptors
 def Create_descriptors(img, b):
+    
+
+
     dc = Normalized_histogram(img, (2**b)-1)
     dt = Haralick_descriptor(img, (2**b)-1)
     dg = Gradients_histogram(img)
-    return np.concatenate(dc, dt, dg)
+
+
+    # print('descriptor dc')
+    # print(dc)
+    # print('descriptor dt')
+    # print(dt)
+    # print('descriptor dg')
+    # print(dg)
+    # print('concatenado')
+    desc = np.concatenate((dc, dt, dg))
+
+    #print("imprimindo vetorzao concatenado")
+    #print(desc)
+
+    return desc
 
 # Calculates normalized histogram, returns vector
 def Normalized_histogram(img, b):
@@ -56,7 +77,11 @@ def Normalized_histogram(img, b):
     N,M = img.shape
     #simply divide h(k) by the total number of pixels in the image.
     p = hist / (N*M)
-    p = np.linalg.norm(p, b)
+    #print('imprimindo dc')
+    #print(p)
+    p = p / np.linalg.norm(p, b)
+    #print('imprimindo dc linalg')
+    #print(p)
     return p
 
 def energy(c):
@@ -129,11 +154,12 @@ def homogeneity(c):
 def coocurrence(g, intensities):
     linha, coluna = g.shape
 
-    c = np.zeros([intensities, intensities])
+    #print(g)
+    c = np.zeros([intensities+1, intensities+1])
 
     for i in range(linha-1):
         for j in range(coluna-1):
-            c[g[i, j], g [i+1, j+1]] += 1
+            c[int(g[i, j]), int(g[i+1, j+1])] += 1
 
     c = c / np.sum(c)
     return c
@@ -143,15 +169,17 @@ def Haralick_descriptor(img, intensities):
     
     c = coocurrence(img, intensities)
 
-    dt = np.array(5)
+    dt = np.zeros(5)
 
     dt[0] = energy(c)
     dt[1] = entropy(c)
     dt[2] = contrast(c)
     dt[3] = correlation(c)
-    dt[5] = homogeneity(c)
+    dt[4] = homogeneity(c)
 
-    np.linalg.norm(dt)
+    dt = dt / np.linalg.norm(dt)
+    #print("imprimindo dt")
+    #print(dt)
 
     return dt
 
@@ -189,6 +217,8 @@ def Gradients_histogram(img):
         for j in range(colunas):
             dg[fi_d[i,j]] += m[i,j]
 
+    dg = dg / np.linalg.norm(dg)
+
     return dg
 
 # Function that calculates the Root-mean-square deviation (RSME)
@@ -199,9 +229,13 @@ def RSME(g, r):
 # Function that compares two descriptors
 def Difference(a, b):
     sum = 0.0
-    for i in range (len(a)):
-        for j in range (len(b)):
-            sum = (a[i] - b[i])**2
+    # print("imprimindo a")
+    # print(a)
+    # print("imprimindo b")
+    # print(b)
+    for i in a:
+        for j in b:
+            sum = (i - j)**2
     return math.sqrt(sum)
 ####################################
 
@@ -219,6 +253,9 @@ ref_img = imageio.imread(_img_ref)
 ###### Preprocessing and Quantisation ######
 grayscale_img = To_grayscale(obj_img)
 grayscale_img = Quantisation(grayscale_img, _quant_par)
+
+ref_img = To_grayscale(ref_img)
+ref_img = Quantisation(ref_img, _quant_par)
 ############################################
 
 ###### Creating Image Descriptors ##########
@@ -227,19 +264,27 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 
 ###### Finding the object #########
 N,M = ref_img.shape
-windows = np.empty((N/16,M/16))
-wind_descr = np.empty((N/16 * M/16))
-for i in range (N/16): # creating windows and their descriptors
-    for j in range(M/16):
-        windows[i][j] = ref_img[ row[i*32]:row[(i+1)*32],row[j*32]:row[(j+1)*32] ]
-        wind_descr[i* N/16 + j] = Create_descriptors(windows[i][j], _quant_par)
+#print(N,M)
+windows = np.empty((int(N/16),int(M/16),32,32))
+wind_descr = np.empty((int(((N/16)) * ((M/16))), 21))
+for i in range (int(N/16)-1): # creating windows and their descriptors
+    for j in range(int(M/16)-1):
+
+        #print("(X) imagem de ", i*16, " a ", (i+2)*16)
+        #print("(Y) imagem de ", j*16, " a ", (j+2)*16)
+        windows[i][j] = ref_img[i*16:(i+2)*16,j*16:(j+2)*16]
+        
+        #print("imprimindo os wind")
+        #print(windows[i][j])
+        wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
+        #print(wind_descr)
 
 min_dist = sys.maxsize
 close_x = -1
 close_y = -1
 for x in range (len(descriptor)): # comparing descriptors with descriptors
-    for y in range (N/16 * M/16):
-        a = Difference(descriptor[x], wind_descr[y])
+    for y in range (int(N/16 * M/16)):
+        a = Difference(descriptor, wind_descr[y])
         if min_dist > a:
             min_dist = a
             close_x = x
@@ -248,5 +293,5 @@ for x in range (len(descriptor)): # comparing descriptors with descriptors
 ###################################
 
 ###### Printing the results #####
-print(close_x + " " + close_y)
+print(close_x, " ", close_y)
 #################################
