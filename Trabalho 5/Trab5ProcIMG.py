@@ -18,7 +18,7 @@ import numpy as np
 import imageio
 import math
 import scipy
-import scipy.ndimage
+#import scipy.ndimage
 import sys
 
 
@@ -77,8 +77,8 @@ def Normalized_histogram(img, b):
     N,M = img.shape
     #simply divide h(k) by the total number of pixels in the image.
     p = hist / (N*M)
-    print('d_c')
-    print(p)
+    """ print('d_c')
+    print(p) """
     p = p / np.linalg.norm(p, b)
     #print('imprimindo dc linalg')
     #print(p)
@@ -111,27 +111,34 @@ def correlation(c):
 
     # mi_i
     for i in range(linha):
-        mi_i *= i
+        alt = 0
         for j in range(coluna):
-            mi_i += c[i, j]
+            alt += c[i, j]
 
-    # delta_i
-    for i in range(linha):
-        delta_i *= (i-mi_i)**2
-        for j in range(coluna):
-            delta_i += c[i, j]
+        mi_i += i * alt
 
     # mi_j
     for j in range(linha):
-        mi_j *= j
+        alt = 0
         for i in range(coluna):
-            mi_j += c[i, j]
+            alt += c[i, j]
+
+        mi_j += j * alt
+    
+
+    # delta_i
+    for i in range(linha):
+        alt = 0
+        for j in range(coluna):
+            alt += c[i, j]
+        delta_i += ((i-mi_i)**2) * alt
 
     # delta_j
     for j in range(linha):
-        delta_j *= (j-mi_j)**2
+        alt = 0
         for i in range(coluna):
-            delta_j += c[i, j]
+            alt += c[i, j]
+        delta_j = ((j-mi_j)**2) * alt
 
     # correlation
     for i in range(linha):
@@ -176,8 +183,8 @@ def Haralick_descriptor(img, intensities):
     dt[2] = contrast(c)
     dt[3] = correlation(c)
     dt[4] = homogeneity(c)
-    print("d_t")
-    print(dt)
+    """ print("d_t")
+    print(dt) """
 
     dt = dt / np.linalg.norm(dt)
 
@@ -185,6 +192,8 @@ def Haralick_descriptor(img, intensities):
 
 # Calculates histogram of oriented gradients, returns vector
 def Gradients_histogram(img):
+
+    img = img.astype('float64')
 
     wsx = [ [-1, -2, -1],
             [ 0,  0,  0],
@@ -194,16 +203,25 @@ def Gradients_histogram(img):
             [-2,  0,  2],
             [-1,  0,  1]]
 
-    gradientX = scipy.ndimage.convolve(img, wsx, mode='constant', cval=0.0)
-    gradientY = scipy.ndimage.convolve(img, wsy, mode='constant', cval=0.0)
+    gradientX = scipy.ndimage.convolve(img, wsx, mode='grid-mirror')
+    gradientY = scipy.ndimage.convolve(img, wsy, mode='grid-mirror')
+    #np.set_printoptions(threshold=sys.maxsize)
+    #print("gradientX: ", gradientX)
+    #print("gradientY: ", gradientY)
 
-    m = np.sqrt(gradientX**2 + gradientY**2)/np.sqrt(np.sum(gradientX**2 + gradientY**2))
+    soma = np.sum(np.sqrt(gradientX**2 + gradientY**2))
+    #print("soma: ", soma)
+
+    m = np.sqrt(gradientX**2 + gradientY**2)/soma
+
+    #print("matriz M: ", m)
 
     np.seterr(divide='ignore', invalid='ignore')
 
     fi = np.arctan(gradientY/gradientX)
     fi = fi + np.pi/2
     fi = np.degrees(fi)
+    #print("fi: ", fi)
 
     # digitise the angles into 9 bins
     bins = np.arange(20, 180, 20)
@@ -217,8 +235,8 @@ def Gradients_histogram(img):
         for j in range(colunas):
             dg[fi_d[i,j]] += m[i,j]
 
-    print("d_g")
-    print(dg)
+    """ print("d_g")
+    print(dg) """
 
     dg = dg / np.linalg.norm(dg)
 
@@ -269,7 +287,7 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 N,M = ref_img.shape
 #print(N,M)
 windows = np.empty((int(N/16),int(M/16),32,32))
-wind_descr = np.empty((int(((N/16)) * ((M/16))), (2**_quant_par-1)+5+9))
+wind_descr = np.empty((int(((N/16)) * ((M/16))), (2**_quant_par)+5+9))
 for i in range (int(N/16)-1): # creating windows and their descriptors
     for j in range(int(M/16)-1):
 
@@ -279,7 +297,7 @@ for i in range (int(N/16)-1): # creating windows and their descriptors
         
         #print("imprimindo os wind")
         #print(windows[i][j])
-        #wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
+        wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
         #print(wind_descr)
 
 min_dist = sys.maxsize
