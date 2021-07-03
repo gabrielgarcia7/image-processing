@@ -18,9 +18,8 @@ import numpy as np
 import imageio
 import math
 import scipy
-#import scipy.ndimage
+import scipy.ndimage
 import sys
-
 
 ####### functions definitions ######
 
@@ -44,12 +43,9 @@ def Quantisation (img, b):
 # Calculates and concatenates the descriptors
 def Create_descriptors(img, b):
     
-
-
     dc = Normalized_histogram(img, (2**b))
     dt = Haralick_descriptor(img, (2**b)-1)
     dg = Gradients_histogram(img)
-
 
     # print('descriptor dc')
     # print(dc)
@@ -124,7 +120,6 @@ def correlation(c):
             alt += c[i, j]
 
         mi_j += j * alt
-    
 
     # delta_i
     for i in range(linha):
@@ -143,8 +138,10 @@ def correlation(c):
     # correlation
     for i in range(linha):
         for j in range(coluna):
-            correlation += ((i*j*c[i,j])-(mi_i*mi_j))/(delta_i*delta_j)
-
+            if delta_i*delta_j == 0:
+                return 0
+            else:
+                correlation += ((i*j*c[i,j])-(mi_i*mi_j))/(delta_i*delta_j)
 
     return correlation
 
@@ -242,11 +239,6 @@ def Gradients_histogram(img):
 
     return dg
 
-# Function that calculates the Root-mean-square deviation (RSME)
-def RSME(g, r):
-	x, y = g.shape
-	return math.sqrt((np.sum(np.square(g - r)))/(x*y))
-
 # Function that compares two descriptors
 def Difference(a, b):
     sum = 0.0
@@ -254,9 +246,8 @@ def Difference(a, b):
     # print(a)
     # print("imprimindo b")
     # print(b)
-    for i in a:
-        for j in b:
-            sum = (i - j)**2
+    for i in range(len(a)):
+        sum += (a[i] - b[i])**2
     return math.sqrt(sum)
 ####################################
 
@@ -297,21 +288,31 @@ for i in range (int(N/16)-1): # creating windows and their descriptors
         
         #print("imprimindo os wind")
         #print(windows[i][j])
-        wind_descr[int(i* N/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
+        wind_descr[int(i* M/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
         #print(wind_descr)
 
 min_dist = sys.maxsize
 close_x = -1
 close_y = -1
-for x in range (len(descriptor)): # comparing descriptors with descriptors
-    for y in range (int(N/16 * M/16)):
-        a = Difference(descriptor, wind_descr[y])
-        if min_dist > a:
-            min_dist = a
-            close_x = int(y / N/16)
-            close_y = int((y % N/16))
 
-###################################
+for y in range (int(N/16 * M/16)):
+    a = Difference(descriptor, wind_descr[y])
+    #print(str(a) + " " + str(min_dist))
+    #print(str(close_x) + " " + str(close_y))
+    if min_dist > a and a > -1:
+        min_dist = a
+        close_x = int(y/16)
+        close_y = int((y%16))
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+fig, ax = plt.subplots()
+ax.imshow(ref_img)
+rect = patches.Rectangle (( close_x*16, close_y*16), 32, 32, linewidth=1, edgecolor='r', facecolor='none')
+ax.add_patch(rect)
+plt.show()
+
+#################################
 
 ###### Printing the results #####
 print(close_x, " ", close_y)
