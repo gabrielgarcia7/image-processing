@@ -1,5 +1,5 @@
 # -----------------------------------------------------------
-# Assignment 5:  image descriptors
+# Assignment 5:  Image Descriptors
 # SCC0251 — Image Processing
 # 
 # SCC5830/0251 — Prof. Moacir Ponti
@@ -13,7 +13,6 @@
 # Gabriel Garcia Lorencetti - NUSP 10691891
 # -----------------------------------------------------------
 
-
 import numpy as np
 import imageio
 import math
@@ -21,20 +20,20 @@ import scipy
 import scipy.ndimage
 import sys
 
-####### functions definitions ######
+####### Functions definitions ######
 
 # Function for transforming RGB to gray scale
-def To_grayscale(img):
-    
+def To_grayscale(img):    
     imgA = np.floor(img[:,:,0] * 0.299 + img[:,:,1] * 0.587 + img[:,:,2] * 0.114)
     imgA = imgA.astype('uint8')
-
     return imgA
+
 
 # Quantisation to b bits
 def Quantisation (img, b):
     img = np.right_shift(img, 8-b)
     return img
+
 
 # Calculates and concatenates the descriptors
 def Create_descriptors(img, b):
@@ -44,7 +43,6 @@ def Create_descriptors(img, b):
     dg = Gradients_histogram(img)
 
     desc = np.concatenate((dc, dt, dg))
-    desc = desc.astype('double')
 
     return desc
 
@@ -58,6 +56,7 @@ def Normalized_histogram(img, b):
         hist[i] += pixels_value_i
     
     N,M = img.shape
+
     #simply divide h(k) by the total number of pixels in the image.
     p = hist / (N*M)
     p = p.astype('float64')
@@ -67,17 +66,23 @@ def Normalized_histogram(img, b):
     
     return p
 
+
+# Compute Energy metric
 def energy(c):
     return np.sum(c**2)
 
+
+# Compute Entropy metric
 def entropy(c):
     return -np.sum(c*np.log(c+0.001))
 
+
+# Compute Contrast metric
 def contrast(c):    
     linha, coluna = c.shape
 
-    i=np.arange(linha)
-    j=np.arange(coluna)
+    i = np.arange(linha)
+    j = np.arange(coluna)
 
     xv, yv = np.meshgrid(i,j, sparse=False, indexing='xy')
 
@@ -85,6 +90,8 @@ def contrast(c):
 
     return sum
 
+
+# Compute Correlation metric
 def correlation(c):
 
     mi_i = 0 
@@ -93,7 +100,6 @@ def correlation(c):
     delta_j = 0
     correlation = 0
     linha, coluna = c.shape
-
 
     # mi_i
     for i in range(linha):
@@ -125,6 +131,7 @@ def correlation(c):
             alt += c[i, j]
         delta_j = ((j-mi_j)**2) * alt
 
+
     if delta_i != 0 and delta_j != 0:
         i=j=np.arange(linha)
         xv, yv = np.meshgrid(i,j, sparse=False, indexing='xy') 
@@ -133,6 +140,8 @@ def correlation(c):
 
     return correlation
 
+
+# Compute Homogeneity metric
 def homogeneity(c):
     linha, coluna = c.shape
 
@@ -145,6 +154,8 @@ def homogeneity(c):
 
     return sum
 
+
+# Compute co-ocurrence matrix
 def coocurrence(g, intensities):
     linha, coluna = g.shape
 
@@ -152,11 +163,14 @@ def coocurrence(g, intensities):
 
     for i in range(linha-1):
         for j in range(coluna-1):
+            # intensity level co-ocurrence matrix
             c[int(g[i, j]), int(g[i+1, j+1])] += 1
 
+    # dividing c by the total sum of values
     c = c / np.sum(c)
 
     return c
+
 
 # Calculates haralick texture descriptor, returns vector
 def Haralick_descriptor(img, intensities):
@@ -175,11 +189,14 @@ def Haralick_descriptor(img, intensities):
 
     return dt
 
+
 # Calculates histogram of oriented gradients, returns vector
 def Gradients_histogram(img):
 
+    # convert to float to avoid underflor and overflow
     img = img.astype('float64')
 
+    # filters
     wsx = [ [-1, -2, -1],
             [ 0,  0,  0],
             [ 1,  2,  1]]
@@ -188,17 +205,24 @@ def Gradients_histogram(img):
             [-2,  0,  2],
             [-1,  0,  1]]
 
+    # calculating the cross-correlation between the image and each filter
     gradientX = scipy.ndimage.convolve(img, wsx)
     gradientY = scipy.ndimage.convolve(img, wsy)
 
+    # calculating the magnitude matrix
     soma = np.sum(np.sqrt(gradientX**2 + gradientY**2))
-
     m = np.sqrt(gradientX**2 + gradientY**2)/soma
 
+    # supressing warnings
     np.seterr(divide='ignore', invalid='ignore')
 
+    # calculating the angle matrix
     fi = np.arctan(gradientY/gradientX)
+
+    # shift the angles in pi/2 radians
     fi = fi + np.pi/2
+
+    # converting the angles to degrees
     fi = np.degrees(fi)
 
     # digitise the angles into 9 bins
@@ -209,6 +233,7 @@ def Gradients_histogram(img):
 
     dg = np.zeros(9)
 
+    # accumulating magnitudes using the bins
     for i in range(linhas):
         for j in range(colunas):
             dg[fi_d[i,j]] += m[i,j]
@@ -217,10 +242,14 @@ def Gradients_histogram(img):
 
     return dg
 
+
 # Function that compares two descriptors
-def Difference(a, b):    
+def Difference(a, b):
+    np.seterr(all='ignore')
     return np.sqrt(np.sum((a-b)**2))
+
 ####################################
+
 
 ####### input reading #######
 _img_obj = input().rstrip() # read object image's name
@@ -228,10 +257,12 @@ _img_ref = input().rstrip() # read reference image's name
 _quant_par = int(input()) # read quantisation parameter b <= 8
 ##############################
 
+
 ####### reading image #######
 obj_img = imageio.imread(_img_obj)
 ref_img = imageio.imread(_img_ref)
 #############################
+
 
 ###### Preprocessing and Quantisation ######
 grayscale_img = To_grayscale(obj_img)
@@ -241,15 +272,17 @@ g_ref_img = To_grayscale(ref_img)
 g_ref_img = Quantisation(g_ref_img, _quant_par)
 ############################################
 
+
 ###### Creating Image Descriptors ##########
-#grayscale_img = grayscale_img.astype('float64')
 descriptor = Create_descriptors(grayscale_img, _quant_par)
 ############################################
+
 
 ###### Finding the object #########
 N,M = g_ref_img.shape
 windows = np.empty((int(N/16),int(M/16),32,32))
 wind_descr = np.empty((int(((N/16)) * ((M/16))), (2**_quant_par)+5+9), dtype=np.double)
+
 for i in range (int(N/16)-1): # creating windows and their descriptors
     for j in range(int(M/16)-1):
         windows[i][j] = g_ref_img[i*16:(i+2)*16,j*16:(j+2)*16]
@@ -259,6 +292,7 @@ min_dist = sys.maxsize
 close_x = -1
 close_y = -1
 
+# calculating the distances and finding the closest window
 for y in range (int(N/16 * M/16)):
     a = Difference(descriptor, wind_descr[y])
     if min_dist > a and a >= 0:
@@ -266,16 +300,8 @@ for y in range (int(N/16 * M/16)):
         close_x = int(y/16)
         close_y = int(y%16)
 
-# Code to visualize patch
-#import matplotlib.pyplot as plt
-#import matplotlib.patches as patches
-#fig, ax = plt.subplots()
-#ax.imshow(ref_img)
-#rect = patches.Rectangle (( close_x*16, close_y*16), 32, 32, linewidth=1, edgecolor='r', facecolor='none')
-#ax.add_patch(rect)
-#plt.show()
-
 #################################
+
 
 ###### Printing the results #####
 print(close_x, close_y)
