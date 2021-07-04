@@ -62,7 +62,7 @@ def Normalized_histogram(img, b):
     p = hist / (N*M)
     p = p.astype('float64')
 
-    pNorm = np.linalg.norm(p, b)
+    pNorm = np.linalg.norm(p)
     if pNorm != 0: p = p / pNorm
     
     return p
@@ -188,8 +188,8 @@ def Gradients_histogram(img):
             [-2,  0,  2],
             [-1,  0,  1]]
 
-    gradientX = scipy.ndimage.convolve(img, wsx, mode='grid-mirror')
-    gradientY = scipy.ndimage.convolve(img, wsy, mode='grid-mirror')
+    gradientX = scipy.ndimage.convolve(img, wsx)
+    gradientY = scipy.ndimage.convolve(img, wsy)
 
     soma = np.sum(np.sqrt(gradientX**2 + gradientY**2))
 
@@ -237,8 +237,8 @@ ref_img = imageio.imread(_img_ref)
 grayscale_img = To_grayscale(obj_img)
 grayscale_img = Quantisation(grayscale_img, _quant_par)
 
-ref_img = To_grayscale(ref_img)
-ref_img = Quantisation(ref_img, _quant_par)
+g_ref_img = To_grayscale(ref_img)
+g_ref_img = Quantisation(g_ref_img, _quant_par)
 ############################################
 
 ###### Creating Image Descriptors ##########
@@ -247,12 +247,12 @@ descriptor = Create_descriptors(grayscale_img, _quant_par)
 ############################################
 
 ###### Finding the object #########
-N,M = ref_img.shape
+N,M = g_ref_img.shape
 windows = np.empty((int(N/16),int(M/16),32,32))
 wind_descr = np.empty((int(((N/16)) * ((M/16))), (2**_quant_par)+5+9), dtype=np.double)
 for i in range (int(N/16)-1): # creating windows and their descriptors
     for j in range(int(M/16)-1):
-        windows[i][j] = ref_img[i*16:(i+2)*16,j*16:(j+2)*16]
+        windows[i][j] = g_ref_img[i*16:(i+2)*16,j*16:(j+2)*16]
         wind_descr[int(i* M/16 + j)] = Create_descriptors(windows[i][j], _quant_par)
 
 min_dist = sys.maxsize
@@ -261,21 +261,22 @@ close_y = -1
 
 for y in range (int(N/16 * M/16)):
     a = Difference(descriptor, wind_descr[y])
-    if min_dist > a and a > -1:
+    if min_dist > a and a >= 0:
         min_dist = a
         close_x = int(y/16)
-        close_y = int((y%16))
+        close_y = int(y%16)
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-fig, ax = plt.subplots()
-ax.imshow(ref_img)
-rect = patches.Rectangle (( close_x*16, close_y*16), 32, 32, linewidth=1, edgecolor='r', facecolor='none')
-ax.add_patch(rect)
-plt.show()
+# Code to visualize patch
+#import matplotlib.pyplot as plt
+#import matplotlib.patches as patches
+#fig, ax = plt.subplots()
+#ax.imshow(ref_img)
+#rect = patches.Rectangle (( close_x*16, close_y*16), 32, 32, linewidth=1, edgecolor='r', facecolor='none')
+#ax.add_patch(rect)
+#plt.show()
 
 #################################
 
 ###### Printing the results #####
-print(close_x, " ", close_y)
+print(close_x, close_y)
 #################################
